@@ -1,16 +1,18 @@
 package handlers
 
 import (
-    "example/bookstore/models"
     "example/bookstore/database"
-    "github.com/gin-gonic/gin"
+    "example/bookstore/models"
     "net/http"
+    "strings"
+
+    "github.com/gin-gonic/gin"
 )
 
 func GetBooks(c *gin.Context) {
-    var books []models.Book
+    books := []models.Book{}
     if err := database.DB.Find(&books).Error; err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch books"})
         return
     }
     c.JSON(http.StatusOK, books)
@@ -22,11 +24,24 @@ func PostBooks(c *gin.Context) {
         c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
         return
     }
-    if err := database.DB.Create(&book).Error; err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+
+    book.Title = strings.TrimSpace(book.Title)
+    book.Author = strings.TrimSpace(book.Author)
+
+    if book.Title == "" {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "Title is required and cannot be empty"})
         return
     }
-    c.JSON(http.StatusOK, book)
+    if book.Author == "" {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "Author is required and cannot be empty"})
+        return
+    }
+
+    if err := database.DB.Create(&book).Error; err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create book"})
+        return
+    }
+    c.JSON(http.StatusCreated, book)
 }
 
 func GetBookByID(c *gin.Context) {
